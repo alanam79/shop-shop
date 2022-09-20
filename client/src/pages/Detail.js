@@ -8,10 +8,10 @@ import {
   ADD_TO_CART,
   UPDATE_PRODUCTS,
 } from "../utils/actions";
-import { idbPromise } from "../utils/helpers";
 import { QUERY_PRODUCTS } from "../utils/queries";
 import spinner from "../assets/spinner.gif";
 import Cart from "../components/Cart";
+import { idbPromise } from "../utils/helpers";
 
 function Detail() {
   // const { id } = useParams();
@@ -55,11 +55,22 @@ function Detail() {
         _id: id,
         purchaseQuantity: parseInt(itemInCart.purchaseQuantity) + 1,
       });
+
+      // reflect any action we're dispatching to state in IndexedDB
+      // if we're updating quantity, use existing item data and increment purchaseQuantity value by one
+      idbPromise("cart", "put", {
+        ...itemInCart,
+        purchaseQuantity: parseInt(itemInCart.purchaseQuantity) + 1,
+      });
     } else {
       dispatch({
         type: ADD_TO_CART,
         product: { ...currentProduct, purchaseQuantity: 1 },
       });
+
+      // reflect any action we're dispatching to state in IndexedDB
+      // if product isn't in the cart yet, add it to the current shopping cart in IndexedDB
+      idbPromise("cart", "put", { ...currentProduct, purchaseQuantity: 1 });
     }
   };
 
@@ -68,6 +79,10 @@ function Detail() {
       type: REMOVE_FROM_CART,
       _id: currentProduct._id,
     });
+
+    // reflect any action we're dispatching to state in IndexedDB
+    // upon removal from cart, delete the item from IndexedDB using the `currentProduct._id` to locate what to remove
+    idbPromise("cart", "delete", { ...currentProduct });
   };
 
   useEffect(() => {
@@ -88,7 +103,7 @@ function Detail() {
     }
 
     // get cache from idb
-    // we don't have data in global state and we don't have a connection to the server, the loading data will be undefined. 
+    // we don't have data in global state and we don't have a connection to the server, the loading data will be undefined.
     // We'll then go to the product object store in IndexedDB and retrieve the data from there to provide the global state object.
     else if (!loading) {
       idbPromise("products", "get").then((indexedProducts) => {
