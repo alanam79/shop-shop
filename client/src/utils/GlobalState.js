@@ -1,7 +1,6 @@
 import React, { createContext, useContext } from "react";
 import { useProductReducer } from "./reducers";
 
-
 // createContext will be used to instantiate a new Context object. The more meaningful term we can use here is that we're using it to create the container to hold our global state data and functionality so we can provide it throughout our app!
 // useContext is another React Hook that will allow us to use the state created from the createContext function.
 

@@ -6,6 +6,7 @@ import {
   UPDATE_CATEGORIES,
   UPDATE_CURRENT_CATEGORY,
 } from "../../utils/actions";
+import { idbPromise } from "../../utils/helpers";
 
 function CategoryMenu() {
   // const { data: categoryData } = useQuery(QUERY_CATEGORIES);
@@ -16,18 +17,31 @@ function CategoryMenu() {
   // Because we only need the categories array out of our global state, we simply destructure it out of state so we can use it to provide to our returning JSX.
   const { categories } = state;
 
-  const { data: categoryData } = useQuery(QUERY_CATEGORIES);
+  const { loading, data: categoryData } = useQuery(QUERY_CATEGORIES);
 
   useEffect(() => {
     // if categoryData exists or has changed from the response of useQuery, then run dispatch()
+    // re: IDB => if there's data to be stored
     if (categoryData) {
       // execute our dispatch function with our action object indicating the type of action and the data to set our state for categories to
+      // re: IDB => let's store it in the global state object
       dispatch({
         type: UPDATE_CATEGORIES,
         categories: categoryData.categories,
       });
+      // but let's also take each category and save it to IndexedDB using the helper function
+      categoryData.categories.forEach((category) => {
+        idbPromise("categories", "put", category);
+      });
+    } else if (!loading) {
+      idbPromise("categories", "get").then((categories) => {
+        dispatch({
+          type: UPDATE_CATEGORIES,
+          categories: categories,
+        });
+      });
     }
-  }, [categoryData, dispatch]);
+  }, [categoryData, loading, dispatch]);
 
   const handleClick = (id) => {
     dispatch({
