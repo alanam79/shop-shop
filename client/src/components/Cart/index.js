@@ -5,14 +5,33 @@ import "./style.css";
 import { useStoreContext } from "../../utils/GlobalState";
 import { TOGGLE_CART, ADD_MULTIPLE_TO_CART } from "../../utils/actions";
 import { idbPromise } from "../../utils/helpers";
+import { QUERY_CHECKOUT } from "../../utils/queries";
+import { loadStripe } from "@stripe/stripe-js";
+import { useLazyQuery } from "@apollo/client";
+
+const stripePromise = loadStripe("pk_test_TYooMQauvdEDq54NiTphI7jx");
 
 const Cart = () => {
   const [state, dispatch] = useStoreContext();
   // console log to verify this is, in fact, receiving the state updates
   // console.log(state);
 
+  //  we can't call useQuery(QUERY_CHECKOUT) in the click handler function. The useQuery Hook is meant to run when a component is first rendered, not at a later point in time based on a user action like a button click.
+  // Apollo provides another Hook for this exact situation. The useLazyQuery Hook can be declared like any other Hook but won't actually execute until you tell it to.
+  // The data variable will contain the checkout session, but only after the query is called with the getCheckout() function.
+  const [getCheckout, { data }] = useLazyQuery(QUERY_CHECKOUT);
 
-  // below function is checking to see if state.cart.length is 0, then executing getCart() to retrieve the items from the cart object store and save it to the global state object. 
+  // useEffect to watch for data changes and to trigger the stripe event, when the checkout button is clicked, user is directed to stripe site
+  // Fill out the payment form with the card number 4242 4242 4242 4242 
+  useEffect(() => {
+    if (data) {
+      stripePromise.then((res) => {
+        res.redirectToCheckout({ sessionId: data.checkout.session });
+      });
+    }
+  }, [data]);
+
+  // below function is checking to see if state.cart.length is 0, then executing getCart() to retrieve the items from the cart object store and save it to the global state object.
   // We dispatch the ADD_MULTIPLE_TO_CART action here because we have an array of items returning from IndexedDB, even if it's just one product saved.
   useEffect(() => {
     async function getCart() {
@@ -48,6 +67,23 @@ const Cart = () => {
     return sum.toFixed(2);
   }
 
+  // onclick event for button
+  // When the user clicks Checkout, this function will loop over the items saved in state.cart and add their IDs to a new productIds array.
+  // This productIds array is what the QUERY_CHECKOUT query would need to generate the Stripe session.
+  function submitCheckout() {
+    const productIds = [];
+
+    state.cart.forEach((item) => {
+      for (let i = 0; i < item.purchaseQuantity; i++) {
+        productIds.push(item._id);
+      }
+    });
+
+    getCheckout({
+      variables: { products: productIds },
+    });
+  }
+
   return (
     <div className="cart">
       <div className="close" onClick={toggleCart}>
@@ -62,7 +98,7 @@ const Cart = () => {
           <div className="flex-row space-between">
             <strong>Total: ${calculateTotal()}</strong>
             {Auth.loggedIn() ? (
-              <button>Checkout</button>
+              <button onClick={submitCheckout}>Checkout</button>
             ) : (
               <span>(log in to check out)</span>
             )}
