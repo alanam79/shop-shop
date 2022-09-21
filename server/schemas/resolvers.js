@@ -1,7 +1,9 @@
 const { AuthenticationError } = require("apollo-server-express");
 const { User, Product, Category, Order } = require("../models");
 const { signToken } = require("../utils/auth");
+require("dotenv").config();
 // Once you create a real Stripe account, however, you would want to replace this with an environment variable (e.g., process.env.STRIPE_KEY)
+// const stripe = require("stripe")(process.env.REACT_APP_STRIPE_SECRET_KEY);
 const stripe = require("stripe")("sk_test_4eC39HqLyjWDarjtT1zdp7dc");
 
 const resolvers = {
