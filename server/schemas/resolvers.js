@@ -56,10 +56,17 @@ const resolvers = {
     // the checkout() query expects an array of product IDs. We'll pass this array into a new instance of an Order Mongoose model.
     // The Order model will make it much easier to convert these IDs into fully populated product objects.
     checkout: async (parent, args, context) => {
+      // parse out the referring URL
+      // hardcoded --> const url = "https://localhost:3001";
+
+      // Note that this URL will not work for requests from Apollo Studio(query sandbox), front end logic will be added to complete the checkout process
+      // if you'd like to try getting another session ID, revert the url variable back to https://localhost:3001
+      const url = new URL(context.headers.referer).origin;
+
       const order = new Order({ products: args.products });
       const line_items = [];
-    // must add .execPopulate() or strip will not provide a session ID in graphql
-    // .exec() is used with a query while .execPopulate() is used with a document
+      // must add .execPopulate() or strip will not provide a session ID in graphql
+      // .exec() is used with a query while .execPopulate() is used with a document
       const { products } = await order.populate("products").execPopulate();
 
       for (let i = 0; i < products.length; i++) {
@@ -67,6 +74,7 @@ const resolvers = {
         const product = await stripe.products.create({
           name: products[i].name,
           description: products[i].description,
+          images: [`${url}/images/${products[i].image}`],
         });
 
         // generate price id using the product id
@@ -87,9 +95,11 @@ const resolvers = {
         payment_method_types: ["card"],
         line_items,
         mode: "payment",
-        success_url:
-          "https://example.com/success?session_id={CHECKOUT_SESSION_ID}",
-        cancel_url: "https://example.com/cancel",
+        success_url: `${url}/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${url}/`,
+        // below wa used to test
+        //   success_url:"https://example.com/success?session_id={CHECKOUT_SESSION_ID}",
+        // cancel_url: "https://example.com/cancel",
       });
       // The checkout session ID is the only data the resolver needs, so we can then return it
       return { session: session.id };
